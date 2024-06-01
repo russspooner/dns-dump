@@ -10,7 +10,7 @@ Requires: tqdm, dnspython, requests
 ## Usage
 
 ```bash
-$ ./script_name.sh --help
+$ ./aws.sh --help
 Usage: ./script_name.sh [--profile profile_name] [--config config_file] [--list-zones] [--hostnames-only]
   --profile profile_name    Specify the AWS profile to use
   --config config_file      Specify the AWS config file to use
