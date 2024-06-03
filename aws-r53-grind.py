@@ -16,7 +16,7 @@ def list_subdomains(client, zone_id, hostnames_only):
                     if hostnames_only:
                         hostname=record['Name'].strip()
                         if hostname.endswith('.'):
-                        hostname = hostname[:-1]
+                            hostname = hostname[:-1]
                         print(hostname)
                     else:
                         print(f"Zone ID: {zone_id} - {record['Name'].strip()}")
