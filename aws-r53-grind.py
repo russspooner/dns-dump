@@ -1,7 +1,7 @@
 import argparse
 import boto3
 import botocore
-from botocore.config import Config
+import os
 
 def list_hosted_zones(client):
     response = client.list_hosted_zones()
@@ -14,9 +14,9 @@ def list_subdomains(client, zone_id, hostnames_only):
             for record in page['ResourceRecordSets']:
                 if record['Type'] in ('A', 'CNAME'):
                     if hostnames_only:
-                        print(record['Name'])
+                        print(record['Name'].strip())
                     else:
-                        print(f"Zone ID: {zone_id} - {record['Name']}")
+                        print(f"Zone ID: {zone_id} - {record['Name'].strip()}")
     except botocore.exceptions.ClientError as error:
         if error.response['Error']['Code'] == 'NoSuchHostedZone':
             print(f"No such hosted zone: {zone_id}")
@@ -24,7 +24,7 @@ def list_subdomains(client, zone_id, hostnames_only):
             print(f"Error: {error}")
 
 def main():
-    parser = argparse.ArgumentParser(description="AWS Route 53 Hosted Zones and Subdomains Grinder")
+    parser = argparse.ArgumentParser(description="AWS Route 53 Hosted Zones and Subdomains Script")
     parser.add_argument('--profile', help="Specify the AWS profile to use")
     parser.add_argument('--config', help="Specify the AWS config file to use")
     parser.add_argument('--list-zones', action='store_true', help="List hosted zone IDs only")
@@ -34,12 +34,11 @@ def main():
     session_params = {}
     if args.profile:
         session_params['profile_name'] = args.profile
+    if args.config:
+        os.environ['AWS_SHARED_CREDENTIALS_FILE'] = args.config
     session = boto3.Session(**session_params)
 
-    client_params = {}
-    if args.config:
-        client_params['config'] = Config(config_file=args.config)
-    client = session.client('route53', **client_params)
+    client = session.client('route53')
 
     hosted_zone_ids = list_hosted_zones(client)
 
