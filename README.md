@@ -12,7 +12,7 @@ Requires: tqdm, dnspython, requests
 ## Usage
 
 ```bash
-$ ./aws-r53-grind.sh --help
+$ ./aws-r53-grind.sh|py --help
 Usage: ./aws-r53-grind.sh [--profile profile_name] [--config config_file] [--list-zones] [--hostnames-only]
   --profile profile_name    Specify the AWS profile to use
   --config config_file      Specify the AWS config file to use
