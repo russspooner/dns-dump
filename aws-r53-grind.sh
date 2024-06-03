@@ -39,6 +39,11 @@ main() {
         export AWS_CONFIG_FILE=$CONFIG_FILE
     fi
 
+    # Debug: Print current environment variables for AWS
+    echo "AWS_PROFILE: $AWS_PROFILE"
+    echo "AWS_SHARED_CREDENTIALS_FILE: $AWS_SHARED_CREDENTIALS_FILE"
+    echo "AWS_CONFIG_FILE: $AWS_CONFIG_FILE"
+
     # Check if AWS credentials are available
     if ! aws sts get-caller-identity > /dev/null 2>&1; then
         echo "Error: Unable to locate credentials. Please configure your AWS credentials."
