@@ -1,105 +1,65 @@
 #!/bin/bash
 
-# Usage function
-usage() {
-    echo "Usage: $0 [--profile profile_name] [--config config_file] [--list-zones] [--hostnames-only]"
-    echo "  --profile profile_name    Specify the AWS profile to use"
-    echo "  --config config_file      Specify the AWS config file to use"
-    echo "  --list-zones              List hosted zone IDs only"
-    echo "  --hostnames-only          Output hostnames only"
-    exit 1
+# Function to list hosted zone IDs
+list_hosted_zones() {
+    aws route53 list-hosted-zones --query 'HostedZones[*].Id' --output text | tr '\t' '\n' | sed 's#/hostedzone/##'
 }
 
-# Initialize variables
-PROFILE=""
-CONFIG_FILE=""
-LIST_ZONES=0
-HOSTNAMES_ONLY=0
+# Function to list subdomains for a given hosted zone ID
+list_subdomains() {
+    local hosted_zone_id=$1
+    aws route53 list-resource-record-sets --hosted-zone-id $hosted_zone_id --query 'ResourceRecordSets[?Type==`A` || Type==`CNAME`].Name' --output text | tr '\t' '\n'
+}
 
-# Parse command-line arguments
-while [[ $# -gt 0 ]]; do
-    case $1 in
-        --profile)
-            PROFILE="--profile $2"
-            shift
-            shift
-            ;;
-        --config)
-            CONFIG_FILE="--config $2"
-            shift
-            shift
-            ;;
-        --list-zones)
-            LIST_ZONES=1
-            shift
-            ;;
-        --hostnames-only)
-            HOSTNAMES_ONLY=1
-            shift
-            ;;
-        *)
-            usage
-            ;;
-    esac
-done
+# Main script
+main() {
+    # Command line arguments
+    PROFILE=""
+    CONFIG_FILE=""
+    LIST_ZONES_ONLY=false
+    HOSTNAMES_ONLY=false
 
-# Get list of hosted zone IDs
-HOSTED_ZONE_IDS=$(aws route53 list-hosted-zones $PROFILE $CONFIG_FILE --query 'HostedZones[*].Id' --output text | awk -F'/' '{print $3}')
-
-if [[ $LIST_ZONES -eq 1 ]]; then
-    echo "Hosted Zone IDs:"
-    for ID in $HOSTED_ZONE_IDS; do
-        echo $ID
+    while [[ "$#" -gt 0 ]]; do
+        case $1 in
+            --profile) PROFILE="$2"; shift ;;
+            --config) CONFIG_FILE="$2"; shift ;;
+            --list-zones) LIST_ZONES_ONLY=true ;;
+            --hostnames-only) HOSTNAMES_ONLY=true ;;
+            *) echo "Unknown parameter passed: $1"; exit 1 ;;
+        esac
+        shift
     done
-    exit 0
-fi
 
-# Loop through each hosted zone ID and list subdomains
-for ID in $HOSTED_ZONE_IDS; do
-    if [[ $HOSTNAMES_ONLY -eq 0 ]]; then
-        echo "Hosted Zone ID: $ID"
+    # Set AWS profile and config file if specified
+    AWS_CMD="aws"
+    if [ -n "$PROFILE" ]; then
+        AWS_CMD="$AWS_CMD --profile $PROFILE"
     fi
-    NEXT_RECORD_NAME=""
-    NEXT_RECORD_TYPE=""
+    if [ -n "$CONFIG_FILE" ]; then
+        export AWS_SHARED_CREDENTIALS_FILE=$CONFIG_FILE
+        export AWS_CONFIG_FILE=$CONFIG_FILE
+    fi
 
-    while :; do
-        if [[ -n $NEXT_RECORD_NAME && -n $NEXT_RECORD_TYPE ]]; then
-            LIST_COMMAND="aws route53 list-resource-record-sets $PROFILE $CONFIG_FILE --hosted-zone-id $ID --query 'ResourceRecordSets[?Type==`\"A\"` || Type==`\"CNAME\"`].Name' --output text --start-record-name $NEXT_RECORD_NAME --start-record-type $NEXT_RECORD_TYPE"
-        else
-            LIST_COMMAND="aws route53 list-resource-record-sets $PROFILE $CONFIG_FILE --hosted-zone-id $ID --query 'ResourceRecordSets[?Type==`\"A\"` || Type==`\"CNAME\"`].Name' --output text"
-        fi
+    # Get hosted zone IDs
+    hosted_zone_ids=$(list_hosted_zones)
 
-        RESULT=$($LIST_COMMAND 2>&1)
-        if [[ $? -ne 0 ]]; then
-            if [[ $RESULT == *"NoSuchHostedZone"* ]]; then
-                if [[ $HOSTNAMES_ONLY -eq 0 ]]; then
-                    echo "No such hosted zone: $ID"
-                fi
-                break
-            else
-                if [[ $HOSTNAMES_ONLY -eq 0 ]]; then
-                    echo "Error: $RESULT"
-                fi
-                break
+    if $LIST_ZONES_ONLY; then
+        echo "Hosted Zone IDs:"
+        echo "$hosted_zone_ids"
+    else
+        for zone_id in $hosted_zone_ids; do
+            if ! $HOSTNAMES_ONLY; then
+                echo "Hosted Zone ID: $zone_id"
             fi
-        fi
+            subdomains=$(list_subdomains $zone_id)
+            if [ -n "$subdomains" ]; then
+                echo "$subdomains"
+            else
+                echo "No subdomains found for hosted zone: $zone_id"
+            fi
+        done
+    fi
+}
 
-        SUBDOMAINS=$(echo "$RESULT" | tr -d '\r')
-        if [[ -z $SUBDOMAINS ]]; then
-            break
-        fi
-
-        if [[ $HOSTNAMES_ONLY -eq 1 ]]; then
-            echo "$SUBDOMAINS" | tr -s '\t' '\n'
-        else
-            echo "$SUBDOMAINS" | tr -s '\t' '\n'
-        fi
-
-        NEXT_RECORD_NAME=$(echo "$RESULT" | awk 'END {print $1}')
-        NEXT_RECORD_TYPE="A"
-
-        if [[ -z $NEXT_RECORD_NAME ]]; then
-            break
-        fi
-    done
-done
+# Execute main function
+main "$@"
