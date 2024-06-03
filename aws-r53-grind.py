@@ -31,14 +31,21 @@ def main():
     parser.add_argument('--hostnames-only', action='store_true', help="Output hostnames only")
     args = parser.parse_args()
 
+    if args.config:
+        os.environ['AWS_SHARED_CREDENTIALS_FILE'] = args.config
+        os.environ['AWS_CONFIG_FILE'] = args.config
+
     session_params = {}
     if args.profile:
         session_params['profile_name'] = args.profile
-    if args.config:
-        os.environ['AWS_SHARED_CREDENTIALS_FILE'] = args.config
+
     session = boto3.Session(**session_params)
 
-    client = session.client('route53')
+    try:
+        client = session.client('route53')
+    except botocore.exceptions.NoCredentialsError:
+        print("Error: Unable to locate credentials. Please provide a valid AWS credentials file or set AWS environment variables.")
+        return
 
     hosted_zone_ids = list_hosted_zones(client)
 
