@@ -31,13 +31,18 @@ main() {
     done
 
     # Set AWS profile and config file if specified
-    AWS_CMD="aws"
     if [ -n "$PROFILE" ]; then
-        AWS_CMD="$AWS_CMD --profile $PROFILE"
+        export AWS_PROFILE=$PROFILE
     fi
     if [ -n "$CONFIG_FILE" ]; then
         export AWS_SHARED_CREDENTIALS_FILE=$CONFIG_FILE
         export AWS_CONFIG_FILE=$CONFIG_FILE
+    fi
+
+    # Check if AWS credentials are available
+    if ! aws sts get-caller-identity > /dev/null 2>&1; then
+        echo "Error: Unable to locate credentials. Please configure your AWS credentials."
+        exit 1
     fi
 
     # Get hosted zone IDs
