@@ -14,7 +14,10 @@ def list_subdomains(client, zone_id, hostnames_only):
             for record in page['ResourceRecordSets']:
                 if record['Type'] in ('A', 'CNAME'):
                     if hostnames_only:
-                        print(record['Name'].strip())
+                        hostname=record['Name'].strip()
+                        if hostname.endswith('.'):
+                        hostname = hostname[:-1]
+                        print(hostname)
                     else:
                         print(f"Zone ID: {zone_id} - {record['Name'].strip()}")
     except botocore.exceptions.ClientError as error:
