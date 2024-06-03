@@ -31,9 +31,9 @@ def main():
     parser.add_argument('--hostnames-only', action='store_true', help="Output hostnames only")
     args = parser.parse_args()
 
-    if args.config:
-        os.environ['AWS_SHARED_CREDENTIALS_FILE'] = args.config
-        os.environ['AWS_CONFIG_FILE'] = args.config
+if args.config:
+    os.environ['AWS_SHARED_CREDENTIALS_FILE'] = os.path.expanduser("~/.aws/credentials")
+    os.environ['AWS_CONFIG_FILE'] = args.config
 
     session_params = {}
     if args.profile:
